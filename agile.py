@@ -1,44 +1,84 @@
 # ============================================================
 # JENKINS CI/CD LAB - ISWE406L
-# Interactive reference: pick a question number to view its
-# full source code / script / procedure.
+# 5 Beginner Pipeline Projects (Windows Agent)
+# Interactive menu: pick a project number, see only that
+# project's files/Jenkinsfile/procedure instead of everything
+# at once.
 # ============================================================
 
-topics = {
+PREREQUISITES = r'''
+============================================================
+PREREQUISITES (set up once, before class)
+============================================================
+
+1. Jenkins installed and running on a Windows machine, with
+   the Git plugin installed.
+
+2. Python installed on the Jenkins agent, added to PATH
+   (verify with: python --version).
+
+3. flake8 and pytest pre-installed on the agent so class
+   time isn't lost to installs:
+
+   pip install flake8 pytest
+
+4. Each student has a GitHub account and a public repository
+   for their project.
+
+5. In Jenkins: New Item -> Pipeline, and either:
+   - Paste the Jenkinsfile directly into the Pipeline script
+     box, or
+   - Select "Pipeline script from SCM" and point it at the
+     student's GitHub repo (if they commit the Jenkinsfile to
+     the repo root).
+
+All five projects share Stage 1: Checkout from GitHub.
+Stages 2-3 differ per project.
+
+NOTE: Every Jenkinsfile below uses:
+
+    git branch: 'main', url: 'https://github.com/<student-username>/<repo-name>.git'
+
+Replace <student-username>/<repo-name> with the student's
+actual GitHub username and repository name before use.
+'''
+
+
+PROJECTS = {
 
 "1": r'''
 ============================================================
-QUESTION 1 - PYTEST PIPELINE (Checkout / Install / Test)
+PROJECT 1: Build & Test Pipeline
 ============================================================
 
-Create a Jenkins pipeline on a Windows agent with three stages:
-Checkout, Install Dependencies, and Run Unit Tests with pytest.
+Concept taught: basic CI - install dependencies, then run
+automated tests.
 
 ------------------------------------------------------------
 app.py
 ------------------------------------------------------------
 
-def multiply(a, b):
-    return a * b
+def add(a, b):
+    return a + b
 
 
-def divide(a, b):
-    return a / b
+def subtract(a, b):
+    return a - b
 
 
 ------------------------------------------------------------
 test_app.py
 ------------------------------------------------------------
 
-from app import multiply, divide
+from app import add, subtract
 
 
-def test_multiply():
-    assert multiply(4, 5) == 20
+def test_add():
+    assert add(2, 3) == 5
 
 
-def test_divide():
-    assert divide(20, 5) == 4
+def test_subtract():
+    assert subtract(5, 3) == 2
 
 
 ------------------------------------------------------------
@@ -59,82 +99,67 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'main', url: 'https://github.com/<student-username>/<repo-name>.git'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                bat 'python -m pip install -r requirements.txt'
+                bat 'pip install -r requirements.txt'
             }
         }
 
         stage('Run Unit Tests') {
             steps {
-                bat 'python -m pytest'
+                bat 'pytest test_app.py'
             }
-        }
-    }
-
-    post {
-        success {
-            echo 'BUILD SUCCESSFUL - All tests passed.'
-        }
-
-        failure {
-            echo 'BUILD FAILED - Check the test results.'
         }
     }
 }
 
 
 ------------------------------------------------------------
-FAILURE DEMONSTRATION
+EXECUTION PROCEDURE
 ------------------------------------------------------------
 
-Change multiply() temporarily to:
+1. Create a new GitHub repo, add app.py, test_app.py,
+   requirements.txt, and Jenkinsfile to it, then push.
 
-def multiply(a, b):
-    return a + b
+2. In Jenkins, create a new Pipeline job pointing to this
+   repo (or paste the Jenkinsfile directly).
 
-Then push the change and rebuild.
+3. Click Build Now.
 
-The test:
+4. Open Console Output - confirm all 3 stages run in order
+   and both tests pass (2 passed).
 
-assert multiply(4, 5) == 20
-
-will fail because:
-
-4 + 5 = 9
-
-Therefore Jenkins enters the failure post block:
-
-BUILD FAILED - Check the test results.
+5. Try it broken: change add() to return the wrong value,
+   push, and rebuild - show that the "Run Unit Tests" stage
+   now fails and the pipeline stops there.
 ''',
 
 
 "2": r'''
 ============================================================
-QUESTION 2 - PARAMETRIZED PYTEST (Verbose)
+PROJECT 2: List Utilities - Build & Test Pipeline
+             (with Parametrized Tests)
 ============================================================
 
-Pipeline stages:
-Checkout
-Install Dependencies
-Run Unit Tests (verbose)
-
-Use find_min() and count_odds().
+Concept taught: still the Build & Test pattern from Project
+1, but introduces parametrized tests - a pytest feature that
+runs the same test logic against several different inputs,
+instead of writing a separate test function for each case.
 
 ------------------------------------------------------------
 app.py
 ------------------------------------------------------------
 
-def find_min(numbers):
-    return min(numbers)
+def find_max(numbers):
+    return max(numbers)
 
 
-def count_odds(numbers):
-    return sum(1 for number in numbers if number % 2 != 0)
+def count_evens(numbers):
+    return len([n for n in numbers if n % 2 == 0])
 
 
 ------------------------------------------------------------
@@ -142,31 +167,25 @@ test_app.py
 ------------------------------------------------------------
 
 import pytest
-from app import find_min, count_odds
+from app import find_max, count_evens
 
 
-@pytest.mark.parametrize(
-    "numbers, expected",
-    [
-        ([5, 2, 8, 1], 1),
-        ([10, 20, 30], 10),
-        ([-5, -2, -10], -10)
-    ]
-)
-def test_find_min(numbers, expected):
-    assert find_min(numbers) == expected
+@pytest.mark.parametrize("numbers, expected", [
+    ([1, 5, 3], 5),
+    ([-10, -2, -7], -2),
+    ([4, 4, 4], 4),
+])
+def test_find_max(numbers, expected):
+    assert find_max(numbers) == expected
 
 
-@pytest.mark.parametrize(
-    "numbers, expected",
-    [
-        ([1, 2, 3, 4, 5], 3),
-        ([2, 4, 6, 8], 0),
-        ([1, 3, 5, 7], 4)
-    ]
-)
-def test_count_odds(numbers, expected):
-    assert count_odds(numbers) == expected
+@pytest.mark.parametrize("numbers, expected", [
+    ([1, 2, 3, 4], 2),
+    ([1, 3, 5], 0),
+    ([2, 4, 6, 8], 4),
+])
+def test_count_evens(numbers, expected):
+    assert count_evens(numbers) == expected
 
 
 ------------------------------------------------------------
@@ -187,84 +206,74 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'main', url: 'https://github.com/<student-username>/<repo-name>.git'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                bat 'python -m pip install -r requirements.txt'
+                bat 'pip install -r requirements.txt'
             }
         }
 
         stage('Run Unit Tests') {
             steps {
-                bat 'python -m pytest -v'
+                bat 'pytest test_app.py -v'
             }
         }
     }
 }
 
 
-------------------------------------------------------------
-EXPECTED TEST COUNT
-------------------------------------------------------------
+NOTE: the -v (verbose) flag - with parametrized tests, this
+is worth adding so the console output lists every individual
+input case that ran (e.g. test_find_max[numbers0-5]), rather
+than collapsing them into one line.
 
-There are:
-
-1 test function for find_min()
-    x 3 parameter values
-    = 3 tests
-
-1 test function for count_odds()
-    x 3 parameter values
-    = 3 tests
-
-Total = 6 tests
-
-The number of tests is 6 even though there are only 2 test
-functions because pytest executes each parameterized case
-as a separate test.
 
 ------------------------------------------------------------
-FAILURE DEMONSTRATION
+EXECUTION PROCEDURE
 ------------------------------------------------------------
 
-Add this wrong case:
+1. Create a new GitHub repo, add app.py, test_app.py,
+   requirements.txt, and Jenkinsfile, then push.
 
-([1, 2, 3], 10)
+2. In Jenkins, create a new Pipeline job pointing to this
+   repo.
 
-The actual minimum is 1, but the expected value is 10.
+3. Click Build Now.
 
-Only that parameterized case fails.
+4. Open Console Output - point out that pytest ran 6 tests
+   total, even though only 2 test functions were written -
+   each parametrized case counts as its own test.
+
+5. Try it broken: add one more case to the find_max
+   parametrize list with a wrong expected value
+   (e.g. ([1, 5, 3], 999)), push, and rebuild - show that
+   only that specific case fails, while the others still
+   pass. This is a good moment to explain that
+   parametrization gives fine-grained, per-input feedback.
 ''',
 
 
 "3": r'''
 ============================================================
-QUESTION 3 - ENV VARIABLES + MANUAL APPROVAL (input step)
+PROJECT 3: Manual Approval Gate - Deploy Pipeline
 ============================================================
 
-Pipeline stages:
-Checkout
-Build
-Deploy
-
-APP_NAME and APP_VERSION must be custom environment variables.
-
-Deploy must pause for approval.
+Concept taught: this one is not the Build & Test pattern -
+it introduces a manual approval gate. Many pipelines
+shouldn't deploy automatically the moment code is checked
+in - someone should look and click "yes, go ahead" first.
+Jenkins supports this natively with the input step, which
+literally pauses the pipeline mid-run and waits for a human.
 
 ------------------------------------------------------------
 app.py
 ------------------------------------------------------------
 
-def main():
-    print("Application started successfully.")
-    print("Application deployment completed.")
-
-
-if __name__ == "__main__":
-    main()
+print("Deploying application version 1.0...")
+print("Deployment complete.")
 
 
 ------------------------------------------------------------
@@ -274,33 +283,24 @@ Jenkinsfile
 pipeline {
     agent any
 
-    environment {
-        APP_NAME = 'JenkinsDemoApp'
-        APP_VERSION = '1.0'
-    }
-
     stages {
 
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'main', url: 'https://github.com/<student-username>/<repo-name>.git'
             }
         }
 
         stage('Build') {
             steps {
                 bat 'python -m py_compile app.py'
+                echo 'Build successful: app.py compiled with no syntax errors'
             }
         }
 
         stage('Deploy') {
             steps {
-
-                input(
-                    message: "Approve deployment of ${APP_NAME} version ${APP_VERSION}?",
-                    ok: "Release"
-                )
-
+                input message: 'Approve deployment to production?', ok: 'Deploy'
                 bat 'python app.py'
             }
         }
@@ -309,75 +309,57 @@ pipeline {
 
 
 ------------------------------------------------------------
-OUTCOME 1 - RELEASE
+EXECUTION PROCEDURE
 ------------------------------------------------------------
 
-If you click:
+1. Create a new GitHub repo, add app.py and Jenkinsfile,
+   then push.
 
-Release
+2. In Jenkins, create a new Pipeline job pointing to this
+   repo.
 
-the pipeline continues.
+3. Click Build Now.
 
-app.py executes and prints:
+4. Watch the pipeline reach the Deploy stage and then simply
+   stop moving - no error, no crash, it's just waiting. In
+   the Jenkins UI (either the build's console output or the
+   pipeline visualization), a prompt appears:
+   "Approve deployment to production?" with Deploy and Abort
+   buttons.
 
-Application started successfully.
-Application deployment completed.
+5. Click Deploy - the pipeline resumes, runs python app.py,
+   and finishes successfully.
 
-The build finishes successfully.
+6. Try the other path: run the build again, and this time
+   click Abort instead. Show that the pipeline stops there
+   and is marked as aborted, and app.py never actually runs
+   - nothing gets "deployed" unless a human explicitly
+   approved it.
 
-
-------------------------------------------------------------
-OUTCOME 2 - ABORT
-------------------------------------------------------------
-
-If you click:
-
-Abort
-
-the deployment is cancelled.
-
-The command:
-
-python app.py
-
-is not executed.
-
-The build is aborted rather than completing normally.
+7. Discuss with students: this is exactly how real
+   deployment pipelines protect production systems -
+   automated stages (checkout, build, test) run freely, but
+   the moment something risky or irreversible is about to
+   happen (like deploying to real users), a human checkpoint
+   is inserted on purpose.
 ''',
 
 
 "4": r'''
 ============================================================
-QUESTION 4 - BUILD INFO + LINTER (flake8)
+PROJECT 4: Environment Variables + Linting Pipeline
 ============================================================
 
-Pipeline stages:
-Checkout
-Show Build Info
-Run Linter
-
-The pipeline displays:
-BUILD_NUMBER
-JOB_NAME
-WORKSPACE
+Concept taught: Jenkins auto-injects built-in environment
+variables (BUILD_NUMBER, JOB_NAME, WORKSPACE) into every
+run.
 
 ------------------------------------------------------------
-app.py - INITIAL VERSION
+app.py
 ------------------------------------------------------------
 
 def greet(name):
-    return f"Hello, {name}!"
-
-
-if __name__ == "__main__":
-    print(greet("Jenkins"))
-
-
-------------------------------------------------------------
-requirements.txt
-------------------------------------------------------------
-
-flake8
+    return "Hello, " + name
 
 
 ------------------------------------------------------------
@@ -391,22 +373,21 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'main', url: 'https://github.com/<student-username>/<repo-name>.git'
             }
         }
 
         stage('Show Build Info') {
             steps {
-                bat 'echo BUILD_NUMBER=%BUILD_NUMBER%'
-                bat 'echo JOB_NAME=%JOB_NAME%'
-                bat 'echo WORKSPACE=%WORKSPACE%'
+                echo "Build Number: ${env.BUILD_NUMBER}"
+                echo "Job Name: ${env.JOB_NAME}"
+                echo "Workspace: ${env.WORKSPACE}"
             }
         }
 
         stage('Run Linter') {
             steps {
-                bat 'python -m pip install flake8'
-                bat 'python -m flake8 app.py'
+                bat 'flake8 app.py'
             }
         }
     }
@@ -414,253 +395,48 @@ pipeline {
 
 
 ------------------------------------------------------------
-BUILD INFORMATION
+EXECUTION PROCEDURE
 ------------------------------------------------------------
 
-Build 1 might show:
+1. Create a new GitHub repo, add app.py and Jenkinsfile,
+   push.
 
-BUILD_NUMBER=1
-JOB_NAME=YourJobName
-WORKSPACE=C:\Jenkins\workspace\YourJobName
+2. In Jenkins, create a new Pipeline job pointing to this
+   repo.
 
-Build 2 might show:
+3. Click Build Now, then click it again (Build Now a second
+   time).
 
-BUILD_NUMBER=2
-JOB_NAME=YourJobName
-WORKSPACE=C:\Jenkins\workspace\YourJobName
+4. Open Console Output for both builds and compare -
+   BUILD_NUMBER increases (e.g. #1 then #2) while JOB_NAME
+   and WORKSPACE stay the same. This shows Jenkins tracks
+   build identity automatically.
 
-
-------------------------------------------------------------
-COMPARISON
-------------------------------------------------------------
-
-BUILD_NUMBER changes:
-
-1 -> 2
-
-JOB_NAME normally stays the same.
-
-WORKSPACE normally stays the same for the same Jenkins job.
-
-The exact WORKSPACE path depends on the Jenkins installation
-and job configuration.
-
-
-------------------------------------------------------------
-LINTER FAILURE DEMONSTRATION
-------------------------------------------------------------
-
-Add this unused import:
-
-import os
-
-
-def greet(name):
-    return f"Hello, {name}!"
-
-
-if __name__ == "__main__":
-    print(greet("Jenkins"))
-
-
-flake8 will report the unused import.
-
-The Run Linter stage therefore fails.
+5. Since app.py above is clean, "Run Linter" should pass.
+   Try it broken: add a line with a trailing space or an
+   unused import, push, rebuild - show that flake8 now fails
+   the stage.
 ''',
 
 
 "5": r'''
 ============================================================
-QUESTION 5 - PARAMETERIZED PIPELINE (choice + boolean)
+PROJECT 5: Post-Build Success/Failure Pipeline
 ============================================================
 
-Parameterized pipeline.
-
-Choice parameter:
-
-ENVIRONMENT
-
-Options:
-
-dev
-staging
-prod
-
-Boolean parameter:
-
-RUN_EXTRA_CHECK
+Concept taught: the post block - pipelines can react
+differently depending on whether the build passed or
+failed. This is separate from the numbered stages.
 
 ------------------------------------------------------------
-app.py
+app.py (a clean, compilable file)
 ------------------------------------------------------------
 
-def show_environment(environment):
-    print("Selected environment:", environment)
+def multiply(a, b):
+    return a * b
 
 
-if __name__ == "__main__":
-    show_environment("dev")
-
-
-------------------------------------------------------------
-Jenkinsfile
-------------------------------------------------------------
-
-pipeline {
-    agent any
-
-    parameters {
-
-        choice(
-            name: 'ENVIRONMENT',
-            choices: ['dev', 'staging', 'prod'],
-            description: 'Select deployment environment'
-        )
-
-        booleanParam(
-            name: 'RUN_EXTRA_CHECK',
-            defaultValue: false,
-            description: 'Run extra validation check'
-        )
-    }
-
-    stages {
-
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Show Parameter') {
-            steps {
-                echo "Selected environment: ${params.ENVIRONMENT}"
-            }
-        }
-
-        stage('Extra Check') {
-            when {
-                expression {
-                    return params.RUN_EXTRA_CHECK
-                }
-            }
-
-            steps {
-                echo "Extra check is running..."
-                bat 'python app.py'
-            }
-        }
-    }
-}
-
-
-------------------------------------------------------------
-FIRST BUILD
-------------------------------------------------------------
-
-The first time the Jenkins job is created, Jenkins may not
-show "Build with Parameters" until the Jenkinsfile containing
-the parameters has been loaded and the job configuration has
-been processed.
-
-After Jenkins recognizes the parameters, the job provides
-the parameterized build option.
-
-
-------------------------------------------------------------
-CHECKBOX UNCHECKED
-------------------------------------------------------------
-
-RUN_EXTRA_CHECK = false
-
-The Extra Check stage is skipped because:
-
-when {
-    expression {
-        return params.RUN_EXTRA_CHECK
-    }
-}
-
-evaluates to false.
-
-
-------------------------------------------------------------
-CHECKBOX CHECKED
-------------------------------------------------------------
-
-RUN_EXTRA_CHECK = true
-
-The Extra Check stage executes.
-
-
-------------------------------------------------------------
-ENVIRONMENT EXAMPLES
-------------------------------------------------------------
-
-ENVIRONMENT = dev
-
-Output:
-
-Selected environment: dev
-
-
-ENVIRONMENT = staging
-
-Output:
-
-Selected environment: staging
-
-
-ENVIRONMENT = prod
-
-Output:
-
-Selected environment: prod
-''',
-
-
-"6": r'''
-============================================================
-QUESTION 6 - PARALLEL STAGES + ARCHIVE ARTIFACTS
-============================================================
-
-Pipeline stages:
-Checkout
-Parallel Checks
-Archive Reports
-
-frontend_check.py and backend_check.py must run in parallel.
-
-------------------------------------------------------------
-frontend_check.py
-------------------------------------------------------------
-
-import time
-
-print("Starting frontend check...")
-
-time.sleep(4)
-
-with open("frontend_report.txt", "w") as file:
-    file.write("Frontend check completed successfully.\n")
-
-print("Frontend check completed.")
-
-
-------------------------------------------------------------
-backend_check.py
-------------------------------------------------------------
-
-import time
-
-print("Starting backend check...")
-
-time.sleep(4)
-
-with open("backend_report.txt", "w") as file:
-    file.write("Backend check completed successfully.\n")
-
-print("Backend check completed.")
+print(multiply(4, 5))
 
 
 ------------------------------------------------------------
@@ -674,525 +450,141 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'main', url: 'https://github.com/<student-username>/<repo-name>.git'
             }
         }
 
-        stage('Parallel Checks') {
-            parallel {
-
-                stage('Frontend Check') {
-                    steps {
-                        bat 'python frontend_check.py'
-                    }
-                }
-
-                stage('Backend Check') {
-                    steps {
-                        bat 'python backend_check.py'
-                    }
-                }
-            }
-        }
-
-        stage('Archive Reports') {
-            steps {
-                archiveArtifacts artifacts: 'frontend_report.txt,backend_report.txt', fingerprint: true
-            }
-        }
-    }
-}
-
-
-------------------------------------------------------------
-TIME COMPARISON
-------------------------------------------------------------
-
-Sequential execution:
-
-Frontend = approximately 4 seconds
-Backend  = approximately 4 seconds
-
-Total = approximately 8 seconds
-
-
-Parallel execution:
-
-Frontend = approximately 4 seconds
-Backend  = approximately 4 seconds
-
-Both start at approximately the same time.
-
-Total = approximately 4 seconds
-        plus Jenkins overhead.
-
-
-------------------------------------------------------------
-ARCHIVED ARTIFACTS
-------------------------------------------------------------
-
-Build 1 creates:
-
-frontend_report.txt
-backend_report.txt
-
-Jenkins archives both.
-
-When Build 2 runs, Build 1's archived artifacts remain
-available under Build 1.
-
-The newer build does not automatically delete the older
-build's archived artifacts unless build retention policies
-remove them.
-''',
-
-
-"7": r'''
-============================================================
-QUESTION 7 - SLEEP + MILESTONE + NOTIFICATION
-============================================================
-
-Pipeline stages:
-Checkout
-Build
-Send Notification
-
-Build must:
-1. Compile app.py
-2. Wait 15 seconds
-3. Execute milestone(1)
-
-------------------------------------------------------------
-app.py
-------------------------------------------------------------
-
-def main():
-    print("Build completed successfully.")
-    print("Application is ready.")
-
-
-if __name__ == "__main__":
-    main()
-
-
-------------------------------------------------------------
-Jenkinsfile
-------------------------------------------------------------
-
-pipeline {
-    agent any
-
-    stages {
-
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Build') {
+        stage('Compile Check') {
             steps {
                 bat 'python -m py_compile app.py'
-
-                sleep time: 15, unit: 'SECONDS'
-
-                milestone(1)
             }
         }
+    }
 
-        stage('Send Notification') {
-            steps {
+    post {
+        success {
+            echo 'Build succeeded: app.py has no syntax errors.'
+        }
 
-                echo "Sending build notification..."
-
-                echo "Recipient: #email_id"
-
-                echo "Subject: ${JOB_NAME} - Build ${BUILD_NUMBER}"
-
-                echo "Build URL: ${BUILD_URL}"
-
-                echo "Build notification sent."
-            }
+        failure {
+            echo 'Build failed: check app.py for syntax errors.'
         }
     }
 }
 
 
-------------------------------------------------------------
-WHY ECHO IS USED
-------------------------------------------------------------
-
-The assignment allows either:
-
-mail step
-
-or
-
-echo workaround
-
-when SMTP is not configured.
-
-The above Jenkinsfile uses echo so it can be demonstrated
-without configuring an SMTP server. Replace #email_id with
-your actual recipient address, and replace the mail step
-below with the real one if SMTP is configured:
-
-mail to: '#email_id',
-     subject: "${JOB_NAME} - Build ${BUILD_NUMBER}",
-     body: "Build URL: ${BUILD_URL}"
+NOTE: Project 5 has only 2 stages inside the stages block,
+plus a post block - post is a lifecycle hook, not a numbered
+stage.
 
 
 ------------------------------------------------------------
-TWO QUICK BUILDS
+EXECUTION PROCEDURE
 ------------------------------------------------------------
 
-Start Build 1.
+1. Create a new GitHub repo, add app.py and Jenkinsfile,
+   push.
 
-Before Build 1 reaches:
+2. In Jenkins, create a new Pipeline job pointing to this
+   repo.
 
-milestone(1)
+3. Click Build Now - confirm the build is marked success
+   (green) and the console shows the "Build succeeded"
+   message from the post block.
 
-start Build 2.
+4. Try it broken: introduce a syntax error in app.py
+   (e.g. remove a closing parenthesis: print(multiply(4, 5)),
+   push, and rebuild.
 
-Jenkins uses milestone(1) to prevent an older build from
-continuing past the milestone when a newer build has already
-passed that milestone.
-
-Therefore the older build may be stopped at the milestone.
-
-If the older build is stopped before reaching
-Send Notification, it does not execute that stage and does
-not send the notification.
-
-
-------------------------------------------------------------
-SYNTAX ERROR DEMONSTRATION
-------------------------------------------------------------
-
-Temporarily change app.py to:
-
-def main()
-    print("Build completed successfully.")
+5. Confirm the build is marked failed (red) and the console
+   shows the "Build failed" message instead - demonstrating
+   that post runs regardless of outcome, but chooses the
+   block matching what happened.
+'''
+}
 
 
-The missing ':' causes:
-
-python -m py_compile app.py
-
-to fail.
-
-Therefore the Build stage fails.
-
-The pipeline never reaches:
-
-Send Notification
-
-Therefore no notification is sent.
-''',
-
-
-"8": r'''
+SUMMARY_TABLE = r'''
 ============================================================
-QUESTION 8 - MAVEN + JENKINS CI/CD PIPELINE (FULL SETUP)
+SUMMARY TABLE
 ============================================================
 
-This follows the "Install Maven -> Configure Maven in Jenkins
--> GitHub repo -> Jenkins Pipeline" procedure exactly.
-
-------------------------------------------------------------
-STEP 1 - CHECK JAVA (CMD / PowerShell)
-------------------------------------------------------------
-
-java --version
-
-Expected output looks like:
-
-openjdk 21.0.5 2024-10-15 LTS
-OpenJDK Runtime Environment Temurin-21.0.5+11 (build 21.0.5+11-LTS)
-OpenJDK 64-Bit Server VM Temurin-21.0.5+11 (build 21.0.5+11-LTS, mixed mode, sharing)
-
-
-------------------------------------------------------------
-STEP 2 - INSTALL MAVEN
-------------------------------------------------------------
-
-1. Go to: #email_id   (Apache Maven download page)
-2. Download apache-maven-bin.zip
-3. Save it in the SAME folder as your JDK installation
-   (e.g. C:\_tools\)
-4. Extract all in that same folder
-5. Copy the full path of the Maven "bin" directory, e.g.:
-
-   C:\_tools\apache-maven-3.9.9\bin
-
-
-------------------------------------------------------------
-STEP 3 - SET ENVIRONMENT VARIABLES (Windows)
-------------------------------------------------------------
-
-Open: System Properties -> Advanced -> Environment Variables
-
-A) Edit the "Path" variable:
-   - Click New
-   - Paste the Maven bin path:
-     C:\_tools\apache-maven-3.9.9\bin
-   - Click OK
-
-B) Create MAVEN_HOME:
-   - Click New under System Variables
-   - Variable name:  MAVEN_HOME
-   - Variable value: C:\_tools\apache-maven-3.9.9
-     (same link as the bin path, with \bin removed)
-   - Click OK
-
-C) Create M2_HOME:
-   - Click New under System Variables
-   - Variable name:  M2_HOME
-   - Variable value: C:\_tools\apache-maven-3.9.9
-     (again, remove \bin from the value)
-   - Click OK
-
-
-------------------------------------------------------------
-STEP 4 - VERIFY MAVEN INSTALLATION
-------------------------------------------------------------
-
-Open a new Command Prompt and run:
-
-mvn --version
-
-Expected output:
-
-Apache Maven 3.9.9 (8e8579a9e76f7d015ee5ec7bfcdc97d260186937)
-Maven home: C:\_tools\apache-maven-3.9.9
-Java version: 21.0.5, vendor: Eclipse Adoptium, runtime: C:\_tools\jdk-21
-Default locale: en_US, platform encoding: UTF-8
-OS name: "windows 11", version: "10.0", arch: "amd64", family: "windows"
-
-This confirms Maven is successfully installed.
-
-
-------------------------------------------------------------
-STEP 5 - CONFIGURE MAVEN IN JENKINS
-------------------------------------------------------------
-
-Path:
-Manage Jenkins -> Tools -> Maven Installations
-
-Configuration:
-Name:              M3
-MAVEN_HOME:        C:\Program Files\Apache\apache-maven-3.9.12
-Install automatically: UNCHECKED
-
-(Point this to wherever Maven is actually installed on the
-Jenkins agent machine.)
-
-
-------------------------------------------------------------
-STEP 6 - CREATE THE GITHUB REPOSITORY
-------------------------------------------------------------
-
-1. Create a new repository, e.g.: simple-maven-app
-2. Add a file: pom.xml
-
-
-------------------------------------------------------------
-pom.xml
-------------------------------------------------------------
-
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-http://maven.apache.org/xsd/maven-4.0.0.xsd">
-<modelVersion>4.0.0</modelVersion>
-<groupId>com.example</groupId>
-<artifactId>simple-maven-app</artifactId>
-<version>1.0-SNAPSHOT</version>
-<dependencies>
- <dependency>
- <groupId>junit</groupId>
- <artifactId>junit</artifactId>
- <version>4.13.2</version>
- <scope>test</scope>
- </dependency>
-</dependencies>
-</project>
-
-Commit the changes.
-
-
-------------------------------------------------------------
-STEP 7 - CREATE THE FOLDER STRUCTURE
-------------------------------------------------------------
-
-src/
-  main/java/com/example/App.java
-  test/java/com/example/AppTest.java
-
-
-------------------------------------------------------------
-App.java
-------------------------------------------------------------
-
-package com.example;
-
-public class App {
-    public int add(int a, int b) {
-        return a + b;
-    }
-}
-
-Commit the changes.
-
-
-------------------------------------------------------------
-AppTest.java
-------------------------------------------------------------
-
-package com.example;
-
-import org.junit.Test;
-import static org.junit.Assert.*;
-
-public class AppTest {
-
-    @Test
-    public void testAdd() {
-        App app = new App();
-        assertEquals(5, app.add(2, 3));
-    }
-}
-
-Commit the changes.
-
-
-------------------------------------------------------------
-STEP 8 - LOCAL BUILD TEST (VS Code)
-------------------------------------------------------------
-
-1. Clone your Git repository in VS Code
-2. In the integrated terminal, run:
-
-   mvn clean test
-
-Expected end of output:
-
-[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
-[INFO] BUILD SUCCESS
-
-
-------------------------------------------------------------
-STEP 9 - CREATE THE JENKINS PIPELINE JOB
-------------------------------------------------------------
-
-1. New Item
-2. Enter a name (e.g. "Maven Pipeline 2") and select "Pipeline"
-3. Click OK
-
-
-------------------------------------------------------------
-Jenkinsfile (Pipeline script)
-------------------------------------------------------------
-
-pipeline {
-    agent any
-
-    tools {
-        maven 'M3'
-    }
-
-    stages {
-
-        stage('Checkout Git') {
-            steps {
-                git branch: 'main',
-                    url: '#email_id'
-            }
-        }
-
-        stage('Build and Test') {
-            steps {
-                bat 'mvn clean test'
-            }
-        }
-    }
-}
-
-Replace #email_id above with your own GitHub repository URL,
-e.g. https://github.com/#email_id/simple-maven-app.git
-
-4. Click Apply and Save
-5. Click "Build Now"
-
-
-------------------------------------------------------------
-EXPECTED CONSOLE OUTPUT
-------------------------------------------------------------
-
-[INFO] -------------------------------------------------------
-[INFO] Running com.example.AppTest
-[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
-[INFO]
-[INFO] Results:
-[INFO]
-[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
-[INFO]
-[INFO] -------------------------------------------------------
-[INFO] BUILD SUCCESS
-[INFO] -------------------------------------------------------
-[Pipeline] }
-
-A green checkmark on the build (#1, #2, #3 ...) under
-"Builds" in Jenkins confirms the pipeline ran successfully,
-and "Last successful build" updates on the Permalinks panel.
-''',
-
-}
-
-TOPIC_LABELS = {
-    "1": "Pytest pipeline (Checkout / Install / Test)",
-    "2": "Parametrized pytest (verbose)",
-    "3": "Env variables + manual approval (input step)",
-    "4": "Build info + linter (flake8)",
-    "5": "Parameterized pipeline (choice + boolean)",
-    "6": "Parallel stages + archive artifacts",
-    "7": "Sleep + milestone + notification",
-    "8": "Maven + Jenkins CI/CD pipeline (full setup)",
+Project 1 - Automated testing (basics)
+    Stage 2: Install dependencies
+    Stage 3: Run unit tests
+
+Project 2 - Parametrized tests (multiple cases, one test function)
+    Stage 2: Install dependencies
+    Stage 3: Run unit tests (verbose)
+
+Project 3 - Manual approval gate before deploy
+    Stage 2: Build (compile check)
+    Stage 3: Deploy (with input approval)
+
+Project 4 - Built-in environment variables
+    Stage 2: Show build info
+    Stage 3: Run linter
+
+Project 5 - Post-build success/failure hooks
+    Stage 2: Compile check
+    Stage 3/post: post { success / failure }
+'''
+
+
+PROJECT_TITLES = {
+    "1": "Build & Test Pipeline",
+    "2": "List Utilities - Build & Test Pipeline (Parametrized Tests)",
+    "3": "Manual Approval Gate - Deploy Pipeline",
+    "4": "Environment Variables + Linting Pipeline",
+    "5": "Post-Build Success/Failure Pipeline",
 }
 
 
-# ============================================================
-# INTERACTIVE MENU
-# ============================================================
-
-def show_menu():
+def print_menu():
     print("\n" + "=" * 60)
-    print("   JENKINS CI/CD LAB - ISWE406L")
+    print("  JENKINS CI/CD LAB - ISWE406L")
+    print("  5 Beginner Pipeline Projects (Windows Agent)")
     print("=" * 60)
-    for key in sorted(topics, key=int):
-        print(f"  {key}. {TOPIC_LABELS[key]}")
-    print("  q. Quit")
+    for key in sorted(PROJECT_TITLES):
+        print(f"  {key}. {PROJECT_TITLES[key]}")
+    print("  P. Prerequisites (setup steps, before class)")
+    print("  S. Summary table")
+    print("  A. Show ALL projects")
+    print("  Q. Quit")
     print("-" * 60)
 
 
-def show_topic(choice):
-    print(topics[choice])
+def show_project(choice):
+    content = PROJECTS.get(choice)
+    if content:
+        print(content)
+    else:
+        print("\nInvalid choice. Please enter 1-5, P, S, A, or Q.\n")
 
 
 def main():
     while True:
-        show_menu()
-        choice = input("Enter question number to view (or 'q' to quit): ").strip().lower()
+        print_menu()
+        choice = input("Enter your choice: ").strip().upper()
 
-        if choice == "q":
+        if choice == "Q":
             print("Exiting. Goodbye!")
             break
-
-        if choice in topics:
-            show_topic(choice)
-            input("\nPress Enter to return to the menu...")
+        elif choice == "P":
+            print(PREREQUISITES)
+        elif choice == "S":
+            print(SUMMARY_TABLE)
+        elif choice == "A":
+            print(PREREQUISITES)
+            for key in sorted(PROJECTS):
+                print(PROJECTS[key])
+            print(SUMMARY_TABLE)
+        elif choice in PROJECTS:
+            show_project(choice)
         else:
-            print(f"\nInvalid choice: '{choice}'. Please enter a number from 1 to {len(topics)}, or 'q'.\n")
+            print("\nInvalid choice. Please enter 1-5, P, S, A, or Q.\n")
+
+        input("\nPress Enter to return to the menu...")
 
 
 if __name__ == "__main__":
